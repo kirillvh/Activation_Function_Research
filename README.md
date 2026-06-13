@@ -12,10 +12,10 @@ following up with a conventional backpropgation based optimization, was found to
 the overall performance of PEUAF because its learnable frequency paramater tends to have
 local minima which are difficult for a gradient based optimizer to escape so a global search 
 warm up phase is beneficial.
-with basins
-2. a GELU-based periodic residual improved mean accuracy in two small research protocols,
-was neutral on MNIST, and did not establish a reliable advantage in a deeper
-ResNet.
+
+2. A modified GELU with periodic residual improved mean accuracy in two small research protocols,
+was neutral on MNIST, on the deeper ResNet its not yet conclusive but it can be about equal or slightly better than conventional GELU depending on paramater chocie.
+But on the other hand its about 1.5-2.3 times slower to train, at least on CPU I tested it with.
 
 ## Research Summary
 
