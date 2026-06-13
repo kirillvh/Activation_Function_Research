@@ -1,0 +1,53 @@
+experiment:
+  name: smoke_relu
+  output_dir: runs/smoke
+  seed: 42
+  deterministic: true
+
+data:
+  dataset: mnist
+  root: data
+  split_seed: 1234
+  validation_size: 1000
+  batch_size: 128
+  num_workers: 0
+  pin_memory: false
+  download: true
+  max_train_samples: 1024
+  max_validation_samples: 512
+  max_test_samples: 512
+  augmentation:
+    enabled: true
+    rotation_degrees: 8
+    translate: 0.05
+    scale_min: 0.97
+    scale_max: 1.03
+    random_erasing_probability: 0.0
+
+model:
+  architecture: standard
+  activation: relu
+  activation_kwargs: {}
+  channels: [8, 16]
+  hidden_features: 32
+  dropout: 0.1
+
+training:
+  epochs: 1
+  device: auto
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: adamw
+  scheduler: cosine
+  scheduler_min_learning_rate: 0.0
+  gradient_clip_norm: null
+  log_every_steps: 2
+
+checkpoint:
+  enabled: true
+  save_every_steps: 3
+  keep_latest: 3
+  resume: null
+
+tensorboard:
+  enabled: true

@@ -1,0 +1,40 @@
+benchmark:
+  name: peuaf_frequency_optimization
+  output_dir: runs/benchmarks/research
+  seed: 42
+  success_mse: 0.000001
+
+data:
+  x_min: 0.0
+  x_max: 20.0
+  train_samples: 512
+  test_samples: 4096
+  target_frequency: 0.37
+
+batch_study:
+  enabled: true
+  initial_w: 0.5
+  batch_sizes: [1, 8, 32, 128, 512]
+  repeats: 20
+  steps: 3000
+  learning_rate: 0.01
+  minimum_learning_rate: 0.000001
+
+search_study:
+  methods: [gradient, random, multistart, grid, pygad, torchga]
+  repeats: 10
+
+search:
+  initial_w: 0.5
+  population_size: 24
+  grid_points: 201
+  warmup_steps: 300
+  warmup_learning_rate: 0.01
+  warmup_batch_size: 512
+  generations: 30
+
+refinement:
+  steps: 3000
+  learning_rate: 0.01
+  minimum_learning_rate: 0.000001
+  batch_size: 512

@@ -1,0 +1,33 @@
+{
+  "x_min": -4.0,
+  "x_max": 8.0,
+  "samples": 4801,
+  "curves": [
+    {
+      "label": "PEUAF (w=0.1)",
+      "activation": "peuaf",
+      "w": 0.10000000149011612,
+      "z": 1.1000000014901161,
+      "positive_period": 2.2000000029802322,
+      "positive_peak_x": 1.1000000014901161,
+      "negative_slope_at_zero": 0.5,
+      "positive_slope_at_zero": 0.9090909078594082
+    },
+    {
+      "label": "relu",
+      "activation": "relu"
+    },
+    {
+      "label": "gelu",
+      "activation": "gelu"
+    },
+    {
+      "label": "silu",
+      "activation": "silu"
+    },
+    {
+      "label": "tanh",
+      "activation": "tanh"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+benchmark:
+  name: sine_triangle_pqd
+  base_config: configs/research_pqd.yaml
+  output_dir: runs/benchmarks/research
+  repeats: 6
+  matrix:
+    model.activation:
+      - gelu
+      - gelu_sine_triangle
+    training.activation_learning_rate_multiplier: [1.0]

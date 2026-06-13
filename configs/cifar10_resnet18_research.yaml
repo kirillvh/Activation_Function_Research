@@ -1,0 +1,68 @@
+experiment:
+  name: null
+  output_dir: runs/cifar10_resnet18
+  seed: 42
+  deterministic: true
+
+runtime:
+  cpu_affinity: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  intraop_threads: 8
+  interop_threads: 1
+
+data:
+  dataset: cifar10
+  root: data
+  split_seed: 1234
+  validation_size: 5000
+  batch_size: 64
+  num_workers: 0
+  pin_memory: true
+  download: true
+  max_train_samples: null
+  max_validation_samples: null
+  max_test_samples: null
+  augmentation:
+    enabled: true
+    crop_padding: 0
+    horizontal_flip_probability: 0.5
+    rotation_degrees: 10
+    translate: 0.1
+    shear_degrees: 10
+    random_erasing_probability: 0.0
+
+model:
+  architecture: resnet18
+  activation: relu
+  activation_kwargs: {}
+  activation_policy: mixed_last_block
+  peuaf_kwargs:
+    initial_w: 0.5
+  channels: [64, 128, 256, 512]
+  block_depths: [2, 2, 2, 2]
+
+training:
+  epochs: 300
+  device: auto
+  learning_rate: 0.01
+  weight_decay: 0.0001
+  optimizer: nadam
+  momentum_decay: 0.004
+  scheduler: plateau
+  scheduler_mode: max
+  scheduler_factor: 0.2
+  scheduler_patience: 5
+  scheduler_threshold: 0.0001
+  scheduler_min_learning_rate: 0.000001
+  peuaf_learning_rate_multiplier: 1.0
+  peuaf_weight_decay: 0.0
+  gradient_clip_norm: null
+  log_every_steps: 100
+
+checkpoint:
+  enabled: true
+  save_every_steps: 1000
+  keep_latest: 3
+  resume: null
+
+tensorboard:
+  enabled: true

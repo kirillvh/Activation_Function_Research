@@ -1,0 +1,26 @@
+benchmark:
+  name: triangle_expressivity
+  output_dir: runs/benchmarks/research
+  seed: 42
+  repeats: 3
+  activations:
+    - relu
+    - tanh
+    - peuaf
+
+data:
+  x_min: 0.0
+  x_max: 20.0
+  train_samples: 512
+  test_samples: 4096
+  target_frequency: 0.37
+
+model:
+  # Frequency optimization is multimodal; start in the target basin.
+  initial_w: 0.4
+
+training:
+  steps: 3000
+  learning_rate: 0.01
+  minimum_learning_rate: 0.000001
+  record_every_steps: 10

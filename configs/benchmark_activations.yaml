@@ -1,0 +1,8 @@
+benchmark:
+  name: activation_smoke
+  base_config: configs/smoke.yaml
+  output_dir: runs/benchmarks
+  repeats: 1
+  matrix:
+    model.activation: [peuaf, relu, gelu, silu, tanh]
+    training.epochs: [1024]

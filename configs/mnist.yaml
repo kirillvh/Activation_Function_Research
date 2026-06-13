@@ -1,0 +1,53 @@
+experiment:
+  name: null
+  output_dir: runs
+  seed: 42
+  deterministic: true
+
+data:
+  dataset: mnist
+  root: data
+  split_seed: 1234
+  validation_size: 5000
+  batch_size: 128
+  num_workers: 0
+  pin_memory: true
+  download: true
+  max_train_samples: null
+  max_validation_samples: null
+  max_test_samples: null
+  augmentation:
+    enabled: true
+    rotation_degrees: 10
+    translate: 0.08
+    scale_min: 0.95
+    scale_max: 1.05
+    random_erasing_probability: 0.0
+
+model:
+  architecture: standard
+  activation: relu
+  activation_kwargs: {}
+  channels: [16, 32]
+  hidden_features: 64
+  dropout: 0.15
+
+training:
+  epochs: 64
+  device: auto
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: adamw
+  scheduler: cosine
+  scheduler_min_learning_rate: 0.0
+  gradient_clip_norm: null
+  log_every_steps: 50
+
+checkpoint:
+  enabled: true
+  save_every_steps: 200
+  keep_latest: 3
+  resume: null
+
+tensorboard:
+  enabled: true

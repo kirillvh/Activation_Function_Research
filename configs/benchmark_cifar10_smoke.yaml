@@ -1,0 +1,7 @@
+benchmark:
+  name: cifar10_activation_smoke
+  base_config: configs/cifar10_smoke.yaml
+  output_dir: runs/benchmarks/cifar10
+  repeats: 1
+  matrix:
+    model.activation: [peuaf, relu, gelu, silu, tanh]

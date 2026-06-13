@@ -1,0 +1,22 @@
+name: peuaf_signal_successive_halving
+base_config: configs/synthetic_pqd_low_data.yaml
+output_dir: runs/multistart/research
+
+search:
+  seed: 42
+  population_size: 4
+  generations: 1
+  elite_count: 2
+  initial_strategy: grid
+  minimum_frequency: 0.05
+  maximum_frequency: 0.95
+  warmup_epochs: 5
+  selection_metric: best_validation_accuracy
+  candidate_tensorboard: false
+  successive_halving:
+    reduction_factor: 2
+    rung_epochs: [15, 25]
+
+final_training:
+  # The selected path receives 5 + 10 + 10 + 25 = 50 total epochs.
+  epochs: 25

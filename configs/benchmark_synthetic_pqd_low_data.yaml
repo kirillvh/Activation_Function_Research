@@ -1,0 +1,10 @@
+benchmark:
+  name: synthetic_pqd_low_data
+  base_config: configs/synthetic_pqd_low_data.yaml
+  output_dir: runs/benchmarks/research
+  repeats: 3
+  matrix:
+    model.activation:
+      - relu
+      - tanh
+      - peuaf

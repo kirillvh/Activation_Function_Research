@@ -1,0 +1,59 @@
+experiment:
+  name: research_cifar10
+  output_dir: runs/research
+  seed: 42
+  deterministic: true
+
+runtime:
+  cpu_affinity: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  intraop_threads: 8
+  interop_threads: 1
+
+data:
+  dataset: cifar10
+  root: data
+  split_seed: 1234
+  validation_size: 5000
+  batch_size: 128
+  num_workers: 0
+  pin_memory: false
+  download: true
+  max_train_samples: 8192
+  max_validation_samples: 2048
+  max_test_samples: 2048
+  augmentation:
+    enabled: true
+    crop_padding: 4
+    horizontal_flip_probability: 0.5
+    random_erasing_probability: 0.0
+
+model:
+  architecture: standard
+  activation: sine_triangle
+  activation_kwargs: {}
+  channels: [32, 64, 128]
+  hidden_features: 128
+  dropout: 0.2
+
+training:
+  epochs: 10
+  device: auto
+  learning_rate: 0.003
+  weight_decay: 0.0001
+  optimizer: nadam
+  momentum_decay: 0.004
+  scheduler: cosine
+  scheduler_min_learning_rate: 0.0
+  activation_learning_rate_multiplier: 0.2
+  activation_weight_decay: 0.0
+  gradient_clip_norm: null
+  log_every_steps: 64
+
+checkpoint:
+  enabled: false
+  save_every_steps: 200
+  keep_latest: 3
+  resume: null
+
+tensorboard:
+  enabled: false
