@@ -7,6 +7,8 @@ The repository began as a PEUAF investigation and now includes a learnable
 sine-triangle family.
 
 Three results are worth carrying forward:
+<img width="1710" height="990" alt="accuracy" src="https://github.com/user-attachments/assets/13299356-abae-45ae-af34-5592ce9ebf5e" />
+
 
 1. PEUAF frequency optimization is highly multimodal. A frequency-only
    evolutionary warm-up followed by ordinary backpropagation improved PEUAF
