@@ -4,24 +4,150 @@ A reproducible PyTorch lab for training, plotting, and comparing activation
 functions on MNIST, CIFAR-10/100, and noisy 1D power-quality signals.
 
 The repository began as a PEUAF investigation and now includes a learnable
-sine-triangle family. 
+sine-triangle family.
 
-So far there are two modest but interesting results:
-1. Using an evolutionary search to optimize the frequency paramater of PEUAF and then
-following up with a conventional backpropgation based optimization, was found to improve
-the overall performance of PEUAF because its learnable frequency paramater tends to have
-local minima which are difficult for a gradient based optimizer to escape so a global search 
-warm up phase is beneficial.
+Three results are worth carrying forward:
 
-2. A modified GELU with periodic residual improved mean accuracy in two small research protocols,
-was neutral on MNIST, on the deeper ResNet its not yet conclusive but it can be about equal or slightly better than conventional GELU depending on paramater chocie.
-But on the other hand its about 1.5-2.3 times slower to train, at least on CPU I tested it with.
+1. PEUAF frequency optimization is highly multimodal. A frequency-only
+   evolutionary warm-up followed by ordinary backpropagation improved PEUAF
+   by `+3.39` test points over a restart-matched control in a 12-seed signal
+   study. It improved PEUAF, but did not catch GELU.
+2. That evolutionary benefit did not transfer to full CIFAR-10. Direct PEUAF
+   reached `87.57%`; evolved PEUAF reached `86.87%`; GELU reached `89.48%`.
+   Short-run frequency selection was reproducible but predicted the wrong
+   long-run winner.
+3. A GELU plus learnable periodic residual looked promising in small pilots,
+   but a full CIFAR-10 confirmation study found no test-accuracy advantage.
+   It matched GELU while taking about `1.94x` as long on CPU. This negative
+   confirmation is the repository's strongest evidence about the variant.
 
 ## Research Summary
 
-All values use validation-selected weights, fixed data splits, and paired
-initialization seeds. CIFAR-10 uses only 8,192 training examples, so these are
-diagnostic experiments rather than leaderboard results.
+### PEUAF Evolution Confirmation (Synthetic PQD, Not CIFAR-10)
+
+Run on June 14, 2026: 12 paired seeds on a noisy, low-data synthetic
+power-quality-disturbance task. Each final model receives a 100-epoch selected
+path. Evolution tests six frequencies for ten epochs across two generations,
+then continues the validation-selected candidate for 90 epochs. Candidate
+runs never evaluate the test set.
+
+These accuracy values are specific to the eight-class 1D signal task and are
+not comparable to the CIFAR-10 accuracies in the next section.
+
+| Condition | Test accuracy | Change vs direct PEUAF | CPU time/seed |
+| --- | ---: | ---: | ---: |
+| GELU | 91.85 +/- 3.37% | +7.20 | 0.25 min |
+| Direct PEUAF, `w=0.5` | 84.65 +/- 3.18% | baseline | 0.53 min |
+| Staged PEUAF, `10 + 90` epochs | 83.52 +/- 3.59% | -1.13 | 0.54 min |
+| Evolved PEUAF | 86.91 +/- 3.61% | +2.26 | 1.10 min |
+
+Evolution beat the restart-matched staged control by `+3.39` points in 9 of
+12 seeds. Its paired 95% interval was `[+0.55, +6.23]`. Against uninterrupted
+PEUAF it won 8 of 12 seeds, but the `+2.26` point interval
+`[-0.71, +5.24]` still crossed zero. Evolved PEUAF remained `4.94` points
+behind GELU and required `2.08x` the end-to-end CPU time of direct PEUAF.
+
+![Paired PEUAF evolution results](docs/images/peuaf_evolution_confirmation/paired_accuracy.png)
+
+The selected frequency explains the effect better than optimizer restarts.
+Direct PEUAF finished near mean `w=0.485`. Evolution selected starts averaging
+`w=0.706`, and final backpropagation changed them by only `-0.001` on average.
+Gradient descent therefore mostly refined the basin chosen by the population
+search instead of discovering another frequency basin.
+
+![Selected PEUAF frequencies](docs/images/peuaf_evolution_confirmation/frequencies.png)
+
+The accuracy gain has a measurable search cost:
+
+![PEUAF accuracy and CPU cost](docs/images/peuaf_evolution_confirmation/cost_accuracy.png)
+
+See [docs/PEUAF_EVOLUTION_CONFIRMATION.md](docs/PEUAF_EVOLUTION_CONFIRMATION.md)
+for the complete protocol and
+[docs/results/peuaf_evolution_confirmation](docs/results/peuaf_evolution_confirmation)
+for the aggregate, per-seed, candidate, and paired CSV files.
+
+### PEUAF on the Same Full CIFAR-10 Protocol
+
+Run on June 14-15, 2026 using the exact CIFAR-10 split, standard CNN,
+optimizer, augmentation, 120-epoch schedule, and seeds from the Periodic GELU
+study. The GELU and Periodic GELU rows below are the original reference runs,
+not a different experiment.
+
+| Condition | Test accuracy | Change vs GELU | CPU time/seed |
+| --- | ---: | ---: | ---: |
+| GELU | 89.477 +/- 0.255% | baseline | 57.42 min |
+| Periodic GELU | 89.483 +/- 0.255% | +0.007 | 111.20 min |
+| Direct PEUAF, `w=0.5` | 87.567 +/- 0.019% | -1.910 | 122.22 min |
+| Evolved PEUAF | 86.870 +/- 0.273% | -2.607 | 161.21 min |
+
+Direct PEUAF trailed GELU in all three pairs. Its paired 95% interval was
+`[-2.74, -1.08]` points. Evolution selected the highest initial grid
+frequency, `w=0.77`, for every seed, but evolved PEUAF finished below direct
+PEUAF in all three pairs. The evolved-minus-direct mean was `-0.70` points
+with interval `[-1.57, +0.18]`.
+
+![Full CIFAR-10 PEUAF comparison](docs/images/peuaf_cifar10_full_120epoch/paired_accuracy.png)
+
+The search accurately identified the strongest five-epoch frequency, but its
+early ranking did not survive long training. Evolved PEUAF also used 155
+total epoch-equivalents per seed and took `1.32x` as long as direct PEUAF.
+
+![CIFAR-10 PEUAF accuracy and cost](docs/images/peuaf_cifar10_full_120epoch/cost_accuracy.png)
+
+The complete protocol, limitations, frequency plots, and learning curves are
+in [docs/PEUAF_CIFAR10_CONFIRMATION.md](docs/PEUAF_CIFAR10_CONFIRMATION.md).
+Machine-readable results are in
+[docs/results/peuaf_cifar10_full_120epoch](docs/results/peuaf_cifar10_full_120epoch).
+
+### Periodic GELU Full CIFAR-10 Confirmation
+
+Run on June 14, 2026: full 45,000-image training split, 5,000 validation
+images, 10,000 test images, 120 epochs, cosine learning-rate decay, and three
+paired seeds. All test values use validation-selected weights.
+
+| Metric | GELU | Periodic GELU | Change |
+| --- | ---: | ---: | ---: |
+| Best validation accuracy | 90.340 +/- 0.185% | 90.553 +/- 0.096% | +0.213 |
+| Test accuracy | 89.477 +/- 0.255% | 89.483 +/- 0.255% | +0.007 |
+| Final-model test accuracy | 89.503 +/- 0.243% | 89.587 +/- 0.082% | +0.083 |
+| CPU training time per run | 57.42 +/- 0.14 min | 111.20 +/- 0.09 min | 1.94x |
+
+The periodic variant won two test pairs and lost one. Its paired mean test
+change was only `+0.007` percentage points, with a wide 95% confidence
+interval of approximately `[-1.47, +1.48]` because `n=3`. The defensible
+conclusion is a tie, not a win. The earlier small-data gain did not persist
+after scaling the data and training duration.
+
+Using the observed paired variability, a rough 80%-power calculation suggests
+about 12 paired seeds to detect a `0.50`-point effect or 45 to detect a
+`0.25`-point effect. These estimates are uncertain because the variance comes
+from only three pairs. More runs are needed to resolve a small advantage, but
+the current data do not justify claiming one.
+
+![Paired CIFAR-10 test accuracy](docs/images/periodic_gelu_cifar10_full_120epoch/paired_accuracy.png)
+
+The orange candidate is rendered above the blue baseline, and each line below
+is the mean across seeds with a one-standard-deviation band.
+
+![Full CIFAR-10 learning curves](docs/images/periodic_gelu_cifar10_full_120epoch/learning_curves.png)
+
+The periodic parameters did learn rather than remaining at initialization:
+mean frequency fell from `1.0` to about `0.35`, triangle blend rose from `0.5`
+to about `0.68`, and periodic amplitude rose from `0.1` to about `0.143`.
+That adaptation did not translate into a reliable test improvement.
+
+![Learned periodic parameters](docs/images/periodic_gelu_cifar10_full_120epoch/activation_parameters.png)
+
+The exact per-run and aggregate values are available in
+[docs/results/periodic_gelu_cifar10_full_120epoch](docs/results/periodic_gelu_cifar10_full_120epoch).
+See [docs/PERIODIC_GELU_LONG_RUN.md](docs/PERIODIC_GELU_LONG_RUN.md) for the
+protocol and interpretation.
+
+### Earlier Diagnostic Pilots
+
+These smaller experiments use paired initialization seeds and
+validation-selected weights. The CIFAR-10 pilot used only 8,192 training
+examples and should not be treated as a leaderboard result.
 
 | Task | Runs | GELU | GELU + sine-triangle | Change |
 | --- | ---: | ---: | ---: | ---: |
@@ -29,19 +155,22 @@ diagnostic experiments rather than leaderboard results.
 | CIFAR-10 CNN | 3 | 69.55 +/- 1.27% | 70.51 +/- 0.62% | +0.96 |
 | Noisy low-data PQD signals | 6 | 86.76 +/- 3.88% | 88.26 +/- 4.81% | +1.50 |
 
-The deeper CIFAR ResNet pilot was inconclusive. GELU reached 56.93% on the
+The deeper CIFAR ResNet pilot was also inconclusive. GELU reached 56.93% on the
 tested seed. The hybrid reached 56.54% with periodic amplitude `0.1` and
 57.23% with amplitude `0.01`. Periodic variants were roughly 1.5-2.3 times
 slower than GELU in these CPU runs.
 
-Initially I tried to improve the performance of PEUAF by blending between its triangle part and a smooth sine wave but the benchmarks were dissapointing.
-However the following periodic modification of GELU(x) was found to be promising on the (so far) limited tests of this repository:
+An initial attempt to improve PEUAF by blending its triangle component with a
+smooth sine wave was disappointing. The more robust variant preserves GELU
+and adds the periodic function as a residual:
 
 ```text
 GELU(x) + a * (b * triangle(w*x) + (1-b) * sin(w*x))
 ```
 
-`a`, `b`, and `w` are learnable and constrained. See
+`a`, `b`, and `w` are learnable and constrained. The full confirmation above
+shows that this flexibility is not enough to outperform GELU on the tested
+CIFAR-10 CNN. See
 [docs/SINE_TRIANGLE.md](docs/SINE_TRIANGLE.md) for the derivation, numerical
 pitfalls, results, and limitations.
 
@@ -170,6 +299,30 @@ python -m activation_benchmark.benchmark `
   --config configs/benchmark_sine_triangle_pqd.yaml
 ```
 
+Run the reproducible full CIFAR-10 confirmation:
+
+```powershell
+benchmark_periodic_gelu_long.bat
+```
+
+On Linux:
+
+```bash
+bash benchmark_periodic_gelu_long.sh
+```
+
+Run PEUAF and evolutionary frequency search on the same full protocol:
+
+```powershell
+benchmark_peuaf_cifar10.bat
+```
+
+On Linux:
+
+```bash
+bash benchmark_peuaf_cifar10.sh
+```
+
 The ResNet config uses the depth-safer `gelu_sine_triangle_deep` variant,
 whose periodic amplitude starts at `0.01`:
 
@@ -189,7 +342,11 @@ python -m activation_benchmark.plot_activations `
 ```
 
 Outputs include `activation_shapes.png`, sampled values and derivatives in
-CSV, and JSON metadata.
+CSV, and JSON metadata. Periodic residual activations are drawn last with a
+heavier line, and a separate residual panel exposes small corrections that
+would otherwise be hidden behind the base activation.
+
+![Periodic GELU activation and residual](docs/images/periodic_gelu_cifar10_full_120epoch/activation_shape.png)
 
 ## PEUAF Optimization
 
@@ -208,6 +365,18 @@ python -m activation_benchmark.multistart `
   --config configs/peuaf_evolutionary_multistart.yaml
 python -m activation_benchmark.multistart `
   --config configs/peuaf_signal_successive_halving.yaml
+```
+
+Run the 12-seed PEUAF evolution confirmation:
+
+```powershell
+benchmark_peuaf_evolution.bat
+```
+
+On Linux:
+
+```bash
+bash benchmark_peuaf_evolution.sh
 ```
 
 For one scalar frequency, a grid is simpler and more reliable than a genetic
@@ -247,9 +416,12 @@ Windows `.bat` and Linux `.sh` launchers provide the same commands:
 | Train CIFAR ResNet-18 | `train_cifar10_resnet18.bat` | `bash train_cifar10_resnet18.sh` |
 | Train synthetic PQD | `train_synthetic_pqd.bat` | `bash train_synthetic_pqd.sh` |
 | PEUAF multi-start | `train_peuaf_multistart.bat` | `bash train_peuaf_multistart.sh` |
+| PEUAF evolution study | `benchmark_peuaf_evolution.bat` | `bash benchmark_peuaf_evolution.sh` |
+| Full CIFAR-10 PEUAF study | `benchmark_peuaf_cifar10.bat` | `bash benchmark_peuaf_cifar10.sh` |
 | Generic benchmark | `benchmark.bat` | `bash benchmark.sh` |
 | CIFAR-10 benchmark | `benchmark_cifar10.bat` | `bash benchmark_cifar10.sh` |
 | Sine-triangle benchmark | `benchmark_sine_triangle.bat` | `bash benchmark_sine_triangle.sh` |
+| Full periodic GELU study | `benchmark_periodic_gelu_long.bat` | `bash benchmark_periodic_gelu_long.sh` |
 | Plot activations | `plot_activations.bat` | `bash plot_activations.sh` |
 | TensorBoard | `tensorboard.bat` | `bash tensorboard.sh` |
 

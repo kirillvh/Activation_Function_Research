@@ -72,11 +72,17 @@ All tests use paired seeds and validation-selected weights.
 | --- | ---: | ---: | ---: |
 | MNIST CNN | 96.76 +/- 0.22% | 96.83 +/- 0.08% | 3 |
 | CIFAR-10 CNN, 8,192 samples | 69.55 +/- 1.27% | 70.51 +/- 0.62% | 3 |
+| CIFAR-10 CNN, full data, 120 epochs | 89.477 +/- 0.255% | 89.483 +/- 0.255% | 3 |
 | Noisy PQD, 256 samples | 86.76 +/- 3.88% | 88.26 +/- 4.81% | 6 |
 
 The bounded sine-triangle activation improved on pure sine in the signal
 pilot but did not consistently beat GELU. The residual hybrid won four of six
 signal seeds and two of three CIFAR seeds.
+
+The full CIFAR-10 confirmation is the most informative result. Periodic GELU
+won two paired seeds and lost one, producing a negligible `+0.007` point mean
+test change while taking `1.94x` as long on CPU. Its small-data advantage did
+not persist. See [PERIODIC_GELU_LONG_RUN.md](PERIODIC_GELU_LONG_RUN.md).
 
 The deeper ResNet pilot did not establish a win. Starting amplitude `0.01`
 reached 57.23% versus GELU at 56.93% on one seed, but this is too little
@@ -84,7 +90,7 @@ evidence for a claim. Starting at `0.1` slightly underperformed.
 
 ## Limitations
 
-- These are small CPU experiments, not full-data publication benchmarks.
+- The main confirmation still has only three paired seeds and one model.
 - Triangle operations made the hybrid roughly 1.5-2.3 times slower than GELU.
 - The learned objective remains periodic and potentially multimodal.
 - More seeds, full CIFAR-10/100, accelerators, and modern large architectures

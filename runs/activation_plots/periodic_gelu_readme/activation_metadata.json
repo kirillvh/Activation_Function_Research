@@ -1,0 +1,23 @@
+{
+  "x_min": -6.0,
+  "x_max": 6.0,
+  "samples": 1201,
+  "curves": [
+    {
+      "label": "gelu",
+      "activation": "gelu"
+    },
+    {
+      "label": "Periodic GELU (w=1, triangle=0.5)",
+      "activation": "gelu_sine_triangle",
+      "w": 1.000000014902861,
+      "blend": 0.5,
+      "period": 6.283185213542151,
+      "slope_at_zero": 0.08183098691641753,
+      "phase_divisor": 1.0,
+      "residual_scale": 0.0,
+      "base_activation": "gelu",
+      "periodic_scale": 0.09999999642986429
+    }
+  ]
+}
