@@ -1,12 +1,12 @@
 # Periodic Activation Benchmark
 
-A reproducible PyTorch lab for training, plotting, and comparing activation
+This repository is a reproducible PyTorch lab for training, plotting, and comparing activation
 functions on MNIST, CIFAR-10/100, and noisy 1D power-quality signals.
 
-The repository began as a PEUAF investigation and now includes a learnable
-sine-triangle family.
+I found GPT-5.5 to be an incredibly useful research assistant in studying periodic activation functions such as PEUAF and GELU combined with a sine wave
+<img width="463" height="572" alt="image" src="https://github.com/user-attachments/assets/7403f67b-331b-4379-8139-08176f56cc21" />
 
-Three results are worth carrying forward:
+Three results are worth mentioning:
 <img width="1710" height="990" alt="accuracy" src="https://github.com/user-attachments/assets/13299356-abae-45ae-af34-5592ce9ebf5e" />
 
 
