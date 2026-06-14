@@ -4,6 +4,7 @@ This repository is a reproducible PyTorch lab for training, plotting, and compar
 functions on MNIST, CIFAR-10/100, and noisy 1D power-quality signals.
 
 I found GPT-5.5 to be an incredibly useful research assistant in studying periodic activation functions such as PEUAF and GELU combined with a sine wave
+
 <img width="463" height="572" alt="image" src="https://github.com/user-attachments/assets/7403f67b-331b-4379-8139-08176f56cc21" />
 
 Three results are worth mentioning:
