@@ -91,6 +91,26 @@ descent refines the selected basin but rarely discovers a distant one.
 
 See [PEUAF_EVOLUTION_CONFIRMATION.md](PEUAF_EVOLUTION_CONFIRMATION.md).
 
+## Raw-Waveform Speech Confirmation
+
+Mini Speech Commands produced the clearest large-model evidence that
+frequency initialization matters:
+
+| Condition | Test accuracy | CPU time/seed |
+| --- | ---: | ---: |
+| GELU | 93.699 +/- 0.531% | 4.11 min |
+| Direct PEUAF | 72.006 +/- 2.694% | 7.95 min |
+| Evolved PEUAF | 87.638 +/- 1.634% | 14.16 min |
+
+The search selected starts near mean `w=0.218`, retrained each selection from
+scratch, and improved direct PEUAF by `+15.63` points. The paired 95% interval
+was `[+6.28, +24.98]`, and evolution won all three seeds. Direct PEUAF instead
+finished near mean `w=0.548`.
+
+Evolved PEUAF still trailed GELU by `6.06` points. Frequency search therefore
+fixed a major optimization failure without making PEUAF the best activation.
+See [AUDIO_MINI_SPEECH_COMMANDS.md](AUDIO_MINI_SPEECH_COMMANDS.md).
+
 ## Full CIFAR-10 Confirmation
 
 The synthetic-signal gain did not transfer to the exact full CIFAR-10
@@ -147,4 +167,7 @@ python -m activation_benchmark.peuaf_search_benchmark `
 
 python -m activation_benchmark.cifar_peuaf_benchmark `
   --config configs/benchmark_peuaf_cifar10_confirmation.yaml
+
+python -m activation_benchmark.audio_benchmark `
+  --config configs/benchmark_audio_activations.yaml
 ```

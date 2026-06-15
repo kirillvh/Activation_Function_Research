@@ -73,6 +73,7 @@ All tests use paired seeds and validation-selected weights.
 | MNIST CNN | 96.76 +/- 0.22% | 96.83 +/- 0.08% | 3 |
 | CIFAR-10 CNN, 8,192 samples | 69.55 +/- 1.27% | 70.51 +/- 0.62% | 3 |
 | CIFAR-10 CNN, full data, 120 epochs | 89.477 +/- 0.255% | 89.483 +/- 0.255% | 3 |
+| Mini Speech Commands, raw waveform | 93.699 +/- 0.531% | 93.747 +/- 0.272% | 3 |
 | Noisy PQD, 256 samples | 86.76 +/- 3.88% | 88.26 +/- 4.81% | 6 |
 
 The bounded sine-triangle activation improved on pure sine in the signal
@@ -83,6 +84,13 @@ The full CIFAR-10 confirmation is the most informative result. Periodic GELU
 won two paired seeds and lost one, producing a negligible `+0.007` point mean
 test change while taking `1.94x` as long on CPU. Its small-data advantage did
 not persist. See [PERIODIC_GELU_LONG_RUN.md](PERIODIC_GELU_LONG_RUN.md).
+
+The raw-waveform audio study reached the same conclusion in a more
+domain-motivated setting. Periodic GELU changed test accuracy by only
+`+0.048` points with paired interval `[-0.987, +1.083]`, while taking `1.79x`
+GELU's CPU time. Its learned periodic frequency, blend, and amplitude remained
+close to initialization. See
+[AUDIO_MINI_SPEECH_COMMANDS.md](AUDIO_MINI_SPEECH_COMMANDS.md).
 
 The deeper ResNet pilot did not establish a win. Starting amplitude `0.01`
 reached 57.23% versus GELU at 56.93% on one seed, but this is too little
@@ -114,4 +122,7 @@ python -m activation_benchmark.benchmark `
   --config configs/benchmark_sine_triangle_pqd.yaml
 python -m activation_benchmark.benchmark `
   --config configs/benchmark_sine_triangle_resnet18.yaml
+
+python -m activation_benchmark.audio_benchmark `
+  --config configs/benchmark_audio_activations.yaml
 ```
