@@ -24,6 +24,9 @@ Three results are worth mentioning:
    It matched GELU while taking about `1.94x` as long on CPU. This negative
    confirmation is the repository's strongest evidence about the variant.
 
+## Next Step
+Investigate if periodic data such as audio responds better to the 
+studied periodic activation functions than the CIFAR-10 image dataset.
 ## Research Summary
 
 ### PEUAF Evolution Confirmation (Synthetic PQD, Not CIFAR-10)
