@@ -7,9 +7,9 @@ I found GPT-5.5 to be an incredibly useful research assistant in studying period
 
 <img width="463" height="572" alt="image" src="https://github.com/user-attachments/assets/7403f67b-331b-4379-8139-08176f56cc21" />
 
-Three results are worth mentioning:
+Four results are worth mentioning:
 <img width="1710" height="990" alt="accuracy" src="https://github.com/user-attachments/assets/13299356-abae-45ae-af34-5592ce9ebf5e" />
-
+![Audio training results](docs/images/audio_mini_speech_commands/learning_curves.png)
 
 1. PEUAF frequency optimization is highly multimodal. A frequency-only
    evolutionary warm-up followed by ordinary backpropagation improved PEUAF
@@ -19,10 +19,14 @@ Three results are worth mentioning:
    reached `87.57%`; evolved PEUAF reached `86.87%`; GELU reached `89.48%`.
    Short-run frequency selection was reproducible but predicted the wrong
    long-run winner.
-3. A GELU plus learnable periodic residual looked promising in small pilots,
+3. On real raw-waveform speech, evolution rescued PEUAF by `+15.63` points
+   over direct training, but evolved PEUAF still trailed GELU by `6.06`
+   points. Periodic GELU and GELU were tied.
+4. A GELU plus learnable periodic residual looked promising in small pilots,
    but a full CIFAR-10 confirmation study found no test-accuracy advantage.
    It matched GELU while taking about `1.94x` as long on CPU. This negative
    confirmation is the repository's strongest evidence about the variant.
+
 
 ## Next Step
 Investigate if periodic data such as audio responds better to the 
