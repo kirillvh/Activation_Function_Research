@@ -467,6 +467,74 @@ class PQDSignalClassifier(nn.Module):
         return self.classifier(features)
 
 
+class RawAudioClassifier(nn.Module):
+    """Compact strided 1D CNN for one-second raw speech waveforms."""
+
+    def __init__(
+        self,
+        activation: str,
+        activation_kwargs: dict[str, Any] | None = None,
+        channels: list[int] | tuple[int, ...] = (16, 32, 64, 96, 128),
+        kernel_sizes: list[int] | tuple[int, ...] = (80, 9, 9, 9, 9),
+        strides: list[int] | tuple[int, ...] = (4, 4, 4, 2, 2),
+        dropout: float = 0.2,
+        num_classes: int = 8,
+    ) -> None:
+        super().__init__()
+        if not (
+            len(channels) == len(kernel_sizes) == len(strides)
+            and len(channels) > 0
+        ):
+            raise ValueError(
+                "Audio channels, kernel_sizes, and strides must have "
+                "the same non-zero length"
+            )
+        activation_kwargs = activation_kwargs or {}
+        layers: list[nn.Module] = []
+        input_channels = 1
+        for output_channels, kernel_size, stride in zip(
+            channels,
+            kernel_sizes,
+            strides,
+        ):
+            layers.extend(
+                [
+                    nn.Conv1d(
+                        input_channels,
+                        output_channels,
+                        kernel_size=kernel_size,
+                        stride=stride,
+                        padding=kernel_size // 2,
+                        bias=False,
+                    ),
+                    nn.BatchNorm1d(output_channels),
+                    make_activation(activation, **activation_kwargs),
+                ]
+            )
+            input_channels = output_channels
+        self.features = nn.Sequential(*layers)
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Dropout(dropout),
+            nn.Linear(channels[-1], num_classes),
+        )
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        for module in self.modules():
+            if isinstance(module, (nn.Conv1d, nn.Linear)):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+            elif isinstance(module, nn.BatchNorm1d):
+                nn.init.ones_(module.weight)
+                nn.init.zeros_(module.bias)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.classifier(self.pool(self.features(inputs)))
+
+
 def build_model(config: dict[str, Any]) -> nn.Module:
     model_config = config["model"]
     dataset_name = str(config["data"].get("dataset", "mnist")).lower()
@@ -553,6 +621,27 @@ def build_model(config: dict[str, Any]) -> nn.Module:
                 "peuaf_per_channel",
                 False,
             ),
+        )
+    if dataset_name == "mini_speech_commands":
+        if architecture != "raw_audio_cnn":
+            raise ValueError(
+                "Mini Speech Commands model.architecture must be "
+                "'raw_audio_cnn'"
+            )
+        return RawAudioClassifier(
+            activation=model_config["activation"],
+            activation_kwargs=model_config.get("activation_kwargs"),
+            channels=model_config.get(
+                "channels",
+                [16, 32, 64, 96, 128],
+            ),
+            kernel_sizes=model_config.get(
+                "kernel_sizes",
+                [80, 9, 9, 9, 9],
+            ),
+            strides=model_config.get("strides", [4, 4, 4, 2, 2]),
+            dropout=model_config.get("dropout", 0.2),
+            num_classes=model_config.get("num_classes", 8),
         )
     raise ValueError(f"Unsupported dataset: {dataset_name!r}")
 

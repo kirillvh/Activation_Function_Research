@@ -122,6 +122,8 @@ def run_evolutionary_multistart(
 ) -> dict[str, Any]:
     search = config["search"]
     base_config = load_config(config["base_config"])
+    for key, value in config.get("base_overrides", {}).items():
+        set_by_path(base_config, key, value)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = (
         Path(config.get("output_dir", "runs/multistart"))
@@ -145,6 +147,8 @@ def run_evolutionary_multistart(
         generation_rows: list[dict[str, Any]] = []
         for candidate_index, frequency in enumerate(population):
             candidate = copy.deepcopy(base_config)
+            for key, value in search.get("candidate_overrides", {}).items():
+                set_by_path(candidate, key, value)
             set_initial_peuaf_frequency(candidate, frequency)
             candidate["experiment"]["seed"] = seed
             candidate["experiment"]["name"] = (
@@ -155,6 +159,7 @@ def run_evolutionary_multistart(
             candidate["training"]["epochs"] = int(
                 search.get("warmup_epochs", 3)
             )
+            candidate["training"]["evaluate_test"] = False
             candidate["checkpoint"]["enabled"] = True
             candidate["checkpoint"]["keep_latest"] = 1
             candidate["checkpoint"]["save_every_steps"] = 10**12
@@ -180,6 +185,7 @@ def run_evolutionary_multistart(
                 ),
                 "learned_frequency_max": max(learned_frequencies),
                 "checkpoint": str(checkpoint),
+                "history": result["history"],
                 **{
                     key: value
                     for key, value in result.items()
@@ -234,6 +240,11 @@ def run_evolutionary_multistart(
             additional_epochs = cumulative_epochs - previous_epochs
             for candidate_index, parent in enumerate(promoted):
                 candidate = copy.deepcopy(base_config)
+                for key, value in search.get(
+                    "candidate_overrides",
+                    {},
+                ).items():
+                    set_by_path(candidate, key, value)
                 frequency = float(parent["learned_frequency_mean"])
                 set_initial_peuaf_frequency(candidate, frequency)
                 candidate["experiment"]["seed"] = seed
@@ -243,6 +254,7 @@ def run_evolutionary_multistart(
                 )
                 candidate["experiment"]["output_dir"] = str(stage1_dir)
                 candidate["training"]["epochs"] = additional_epochs
+                candidate["training"]["evaluate_test"] = False
                 candidate["training"]["initial_checkpoint"] = parent[
                     "checkpoint"
                 ]
@@ -275,6 +287,7 @@ def run_evolutionary_multistart(
                     "cumulative_epochs": cumulative_epochs,
                     "parent_checkpoint": parent["checkpoint"],
                     "checkpoint": str(checkpoint),
+                    "history": result["history"],
                     **{
                         key: value
                         for key, value in result.items()
@@ -301,8 +314,19 @@ def run_evolutionary_multistart(
             base_config["training"]["epochs"],
         )
     )
-    final_config["training"]["initial_checkpoint"] = best["checkpoint"]
-    final_config["training"]["initial_checkpoint_weights"] = "best"
+    final_config["training"]["evaluate_test"] = True
+    warm_start_selected = bool(
+        config.get("final_training", {}).get(
+            "warm_start_selected",
+            True,
+        )
+    )
+    if warm_start_selected:
+        final_config["training"]["initial_checkpoint"] = best["checkpoint"]
+        final_config["training"]["initial_checkpoint_weights"] = "best"
+    else:
+        final_config["training"].pop("initial_checkpoint", None)
+        final_config["training"].pop("initial_checkpoint_weights", None)
     final_config["checkpoint"]["resume"] = None
     print(
         "\nSelected candidate "
@@ -314,7 +338,9 @@ def run_evolutionary_multistart(
     summary = {
         "output_dir": str(output_dir),
         "base_config": config["base_config"],
+        "base_overrides": config.get("base_overrides", {}),
         "selection_metric": metric,
+        "warm_start_selected": warm_start_selected,
         "selected_candidate": best,
         "candidate_runs": rows,
         "final_result": final_result,

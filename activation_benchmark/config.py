@@ -113,21 +113,40 @@ def validate_training_config(config: dict[str, Any]) -> None:
         "cifar10": 50000,
         "cifar100": 50000,
         "synthetic_pqd": None,
+        "mini_speech_commands": None,
     }
     if dataset_name not in dataset_training_sizes:
         choices = ", ".join(dataset_training_sizes)
         raise ValueError(
             f"data.dataset must be one of: {choices}"
         )
-    validation_size = config["data"].get("validation_size")
     training_size = dataset_training_sizes[dataset_name]
-    if not isinstance(validation_size, int) or validation_size < 1:
-        raise ValueError("data.validation_size must be a positive integer")
-    if training_size is not None and validation_size >= training_size:
-        raise ValueError(
-            f"data.validation_size must be between 1 and {training_size - 1} "
-            f"for {dataset_name}"
+    if dataset_name == "mini_speech_commands":
+        validation_percentage = config["data"].get(
+            "validation_percentage",
+            10,
         )
+        test_percentage = config["data"].get("test_percentage", 10)
+        if (
+            not isinstance(validation_percentage, (int, float))
+            or not isinstance(test_percentage, (int, float))
+            or validation_percentage <= 0
+            or test_percentage <= 0
+            or validation_percentage + test_percentage >= 100
+        ):
+            raise ValueError(
+                "Mini Speech Commands validation_percentage and "
+                "test_percentage must be positive and sum to less than 100"
+            )
+    else:
+        validation_size = config["data"].get("validation_size")
+        if not isinstance(validation_size, int) or validation_size < 1:
+            raise ValueError("data.validation_size must be a positive integer")
+        if training_size is not None and validation_size >= training_size:
+            raise ValueError(
+                f"data.validation_size must be between 1 and "
+                f"{training_size - 1} for {dataset_name}"
+            )
 
     architecture = str(
         config["model"].get("architecture", "standard")
@@ -137,6 +156,7 @@ def validate_training_config(config: dict[str, Any]) -> None:
         "cifar10": {"standard", "deep", "resnet18"},
         "cifar100": {"standard", "deep", "resnet18"},
         "synthetic_pqd": {"signal_cnn"},
+        "mini_speech_commands": {"raw_audio_cnn"},
     }
     if architecture not in allowed_architectures[dataset_name]:
         choices = ", ".join(sorted(allowed_architectures[dataset_name]))

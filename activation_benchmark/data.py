@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import hashlib
 import random
+import wave
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Subset, TensorDataset
+from torch.utils.data import DataLoader, Dataset, Subset, TensorDataset
 
 
 @dataclass(frozen=True)
@@ -14,6 +17,12 @@ class DatasetLoaders:
     train: DataLoader
     validation: DataLoader
     test: DataLoader
+
+
+_MINI_SPEECH_CACHE: dict[
+    tuple[str, int, int],
+    tuple[torch.Tensor, torch.Tensor, tuple[str, ...]],
+] = {}
 
 
 def _seed_worker(worker_id: int) -> None:
@@ -220,6 +229,288 @@ def synthetic_pqd_dataset(
     return TensorDataset(signals.unsqueeze(1).float(), labels.long())
 
 
+def _read_pcm_wav(
+    path: str | Path,
+    *,
+    sample_rate: int,
+    sample_length: int,
+) -> torch.Tensor:
+    with wave.open(str(path), "rb") as audio:
+        channels = audio.getnchannels()
+        file_rate = audio.getframerate()
+        sample_width = audio.getsampwidth()
+        frames = audio.readframes(audio.getnframes())
+    if file_rate != sample_rate:
+        raise ValueError(
+            f"{path} uses {file_rate} Hz; expected {sample_rate} Hz"
+        )
+    if sample_width == 1:
+        values = np.frombuffer(frames, dtype=np.uint8).astype(np.int16)
+        values = (values - 128) << 8
+    elif sample_width == 2:
+        values = np.frombuffer(frames, dtype="<i2")
+    elif sample_width == 4:
+        values = (
+            np.frombuffer(frames, dtype="<i4") >> 16
+        ).astype(np.int16)
+    else:
+        raise ValueError(
+            f"{path} has unsupported {sample_width}-byte PCM samples"
+        )
+    if channels > 1:
+        values = values.reshape(-1, channels).mean(axis=1).astype(np.int16)
+    waveform = torch.zeros(sample_length, dtype=torch.int16)
+    copy_count = min(sample_length, len(values))
+    waveform[:copy_count] = torch.from_numpy(values[:copy_count].copy())
+    return waveform
+
+
+def _speech_split(
+    path: str | Path,
+    *,
+    split_seed: int,
+    validation_percentage: float,
+    test_percentage: float,
+) -> str:
+    speaker = Path(path).stem.split("_nohash_", maxsplit=1)[0]
+    digest = hashlib.sha1(
+        f"{split_seed}:{speaker}".encode("utf-8")
+    ).hexdigest()
+    percentage = int(digest[:8], 16) / 0xFFFFFFFF * 100.0
+    if percentage < test_percentage:
+        return "test"
+    if percentage < test_percentage + validation_percentage:
+        return "validation"
+    return "train"
+
+
+def _load_mini_speech_commands(
+    dataset_dir: Path,
+    *,
+    sample_rate: int,
+    sample_length: int,
+) -> tuple[torch.Tensor, torch.Tensor, tuple[str, ...]]:
+    key = (str(dataset_dir.resolve()), sample_rate, sample_length)
+    if key in _MINI_SPEECH_CACHE:
+        return _MINI_SPEECH_CACHE[key]
+
+    cache_path = dataset_dir / (
+        f".waveform_cache_{sample_rate}hz_{sample_length}samples.pt"
+    )
+    if cache_path.exists():
+        payload = torch.load(
+            cache_path,
+            map_location="cpu",
+            weights_only=False,
+        )
+        cached = (
+            payload["waveforms"],
+            payload["labels"],
+            tuple(payload["relative_paths"]),
+        )
+        _MINI_SPEECH_CACHE[key] = cached
+        return cached
+
+    class_names = tuple(
+        sorted(
+            path.name
+            for path in dataset_dir.iterdir()
+            if path.is_dir() and any(path.glob("*.wav"))
+        )
+    )
+    if not class_names:
+        raise RuntimeError(
+            f"No WAV class directories found in {dataset_dir}"
+        )
+    paths = [
+        path
+        for class_name in class_names
+        for path in sorted((dataset_dir / class_name).glob("*.wav"))
+    ]
+    print(f"Loading {len(paths)} Mini Speech Commands WAV files...")
+    waveforms = torch.stack(
+        [
+            _read_pcm_wav(
+                path,
+                sample_rate=sample_rate,
+                sample_length=sample_length,
+            )
+            for path in paths
+        ]
+    )
+    labels = torch.tensor(
+        [class_names.index(path.parent.name) for path in paths],
+        dtype=torch.long,
+    )
+    relative_paths = tuple(
+        path.relative_to(dataset_dir).as_posix() for path in paths
+    )
+    cached = (waveforms, labels, relative_paths)
+    torch.save(
+        {
+            "waveforms": waveforms,
+            "labels": labels,
+            "relative_paths": relative_paths,
+        },
+        cache_path,
+    )
+    _MINI_SPEECH_CACHE[key] = cached
+    return cached
+
+
+class MiniSpeechCommandsDataset(Dataset):
+    def __init__(
+        self,
+        waveforms: torch.Tensor,
+        labels: torch.Tensor,
+        indices: list[int],
+        *,
+        augmentation: dict[str, Any] | None = None,
+    ) -> None:
+        self.waveforms = waveforms
+        self.labels = labels
+        self.indices = indices
+        self.augmentation = augmentation or {}
+
+    def __len__(self) -> int:
+        return len(self.indices)
+
+    def __getitem__(self, item: int) -> tuple[torch.Tensor, torch.Tensor]:
+        index = self.indices[item]
+        waveform = self.waveforms[index].float() / 32768.0
+        if self.augmentation.get("enabled", False):
+            maximum_shift = int(
+                self.augmentation.get("time_shift_samples", 0)
+            )
+            if maximum_shift > 0:
+                shift = int(
+                    torch.randint(
+                        -maximum_shift,
+                        maximum_shift + 1,
+                        (),
+                    )
+                )
+                waveform = torch.roll(waveform, shift)
+                if shift > 0:
+                    waveform[:shift] = 0
+                elif shift < 0:
+                    waveform[shift:] = 0
+            gain_min = float(self.augmentation.get("gain_min", 1.0))
+            gain_max = float(self.augmentation.get("gain_max", 1.0))
+            if gain_min != 1.0 or gain_max != 1.0:
+                gain = torch.empty(()).uniform_(gain_min, gain_max)
+                waveform = waveform * gain
+            noise_std = float(self.augmentation.get("noise_std", 0.0))
+            if noise_std > 0:
+                waveform = waveform + noise_std * torch.randn_like(waveform)
+        if self.augmentation.get("peak_normalize", True):
+            waveform = waveform / waveform.abs().max().clamp_min(1e-4)
+        return waveform.unsqueeze(0), self.labels[index]
+
+
+def _mini_speech_commands_loaders(
+    config: dict[str, Any],
+    *,
+    loader_options: dict[str, Any],
+    loader_generator: torch.Generator,
+) -> DatasetLoaders:
+    data_config = config["data"]
+    root = Path(data_config["root"])
+    dataset_dir = root / "mini_speech_commands"
+    if not dataset_dir.exists() and data_config.get("download", True):
+        from .download_datasets import download_mini_speech_commands
+
+        dataset_dir = download_mini_speech_commands(root)
+    if not dataset_dir.exists():
+        raise RuntimeError(
+            f"Mini Speech Commands is missing at {dataset_dir}. "
+            "Run download_datasets.bat or enable data.download."
+        )
+
+    sample_rate = int(data_config.get("sample_rate", 16000))
+    sample_length = int(data_config.get("sample_length", sample_rate))
+    waveforms, labels, relative_paths = _load_mini_speech_commands(
+        dataset_dir,
+        sample_rate=sample_rate,
+        sample_length=sample_length,
+    )
+    split_seed = int(
+        data_config.get("split_seed", config["experiment"]["seed"])
+    )
+    validation_percentage = float(
+        data_config.get("validation_percentage", 10.0)
+    )
+    test_percentage = float(data_config.get("test_percentage", 10.0))
+    split_indices = {"train": [], "validation": [], "test": []}
+    for index, relative_path in enumerate(relative_paths):
+        split_indices[
+            _speech_split(
+                relative_path,
+                split_seed=split_seed,
+                validation_percentage=validation_percentage,
+                test_percentage=test_percentage,
+            )
+        ].append(index)
+
+    limits = {
+        "train": data_config.get("max_train_samples"),
+        "validation": data_config.get("max_validation_samples"),
+        "test": data_config.get("max_test_samples"),
+    }
+    for split, limit in limits.items():
+        if limit is not None:
+            candidates = split_indices[split]
+            generator = torch.Generator().manual_seed(
+                split_seed + {"train": 11, "validation": 12, "test": 13}[split]
+            )
+            shuffled = torch.randperm(
+                len(candidates),
+                generator=generator,
+            ).tolist()
+            split_indices[split] = [
+                candidates[index] for index in shuffled[: int(limit)]
+            ]
+        if not split_indices[split]:
+            raise RuntimeError(
+                f"Mini Speech Commands {split} split is empty"
+            )
+
+    training_dataset = MiniSpeechCommandsDataset(
+        waveforms,
+        labels,
+        split_indices["train"],
+        augmentation=data_config.get("augmentation"),
+    )
+    validation_dataset = MiniSpeechCommandsDataset(
+        waveforms,
+        labels,
+        split_indices["validation"],
+    )
+    test_dataset = MiniSpeechCommandsDataset(
+        waveforms,
+        labels,
+        split_indices["test"],
+    )
+    return DatasetLoaders(
+        train=DataLoader(
+            training_dataset,
+            shuffle=True,
+            generator=loader_generator,
+            **loader_options,
+        ),
+        validation=DataLoader(
+            validation_dataset,
+            shuffle=False,
+            **loader_options,
+        ),
+        test=DataLoader(
+            test_dataset,
+            shuffle=False,
+            **loader_options,
+        ),
+    )
+
+
 def build_data_loaders(config: dict[str, Any]) -> DatasetLoaders:
     dataset_name = str(config["data"].get("dataset", "mnist")).lower()
     data_config = config["data"]
@@ -232,6 +523,13 @@ def build_data_loaders(config: dict[str, Any]) -> DatasetLoaders:
         "pin_memory": data_config.get("pin_memory", False),
         "worker_init_fn": _seed_worker,
     }
+
+    if dataset_name == "mini_speech_commands":
+        return _mini_speech_commands_loaders(
+            config,
+            loader_options=loader_options,
+            loader_generator=loader_generator,
+        )
 
     if dataset_name == "synthetic_pqd":
         dataset_options = {
