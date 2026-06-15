@@ -70,6 +70,11 @@ def test_synthetic_pqd_config_is_valid():
     assert config["model"]["architecture"] == "signal_cnn"
 
 
+def test_mini_speech_commands_config_is_valid():
+    config = load_config("configs/audio_mini_speech_commands_smoke.yaml")
+    assert config["model"]["architecture"] == "raw_audio_cnn"
+
+
 def test_unknown_dataset_is_rejected():
     config = load_config("configs/cifar10_smoke.yaml")
     config["data"]["dataset"] = "unknown"

@@ -8,10 +8,14 @@ def test_normalize_dataset_names_handles_all_aliases_and_duplicates():
         "mnist",
         "cifar10",
         "cifar100",
+        "mini_speech_commands",
     ]
     assert downloader.normalize_dataset_names(
         ["CIFAR-10", "mnist", "cifar10"]
     ) == ["cifar10", "mnist"]
+    assert downloader.normalize_dataset_names(
+        ["mini-speech-commands", "speechcommands"]
+    ) == ["mini_speech_commands"]
 
 
 def test_normalize_dataset_names_rejects_unknown_dataset():
