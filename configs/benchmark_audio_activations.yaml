@@ -1,0 +1,20 @@
+name: mini_speech_commands_raw_40epoch
+base_config: configs/audio_mini_speech_commands.yaml
+output_dir: runs/benchmarks/publication
+seed_start: 42
+repeats: 3
+epochs: 40
+warmup_epochs: 4
+
+search:
+  population_size: 4
+  generations: 2
+  elite_count: 2
+  initial_strategy: grid
+  minimum_frequency: 0.05
+  maximum_frequency: 0.95
+  mutation_std: 0.08
+  selection_metric: best_validation_accuracy
+  candidate_tensorboard: false
+  candidate_overrides:
+    training.scheduler: none

@@ -1,0 +1,20 @@
+name: mini_speech_commands_raw_smoke
+base_config: configs/audio_mini_speech_commands_smoke.yaml
+output_dir: runs/benchmarks/smoke
+seed_start: 42
+repeats: 1
+epochs: 2
+warmup_epochs: 1
+
+search:
+  population_size: 3
+  generations: 1
+  elite_count: 1
+  initial_strategy: grid
+  minimum_frequency: 0.05
+  maximum_frequency: 0.95
+  mutation_std: 0.08
+  selection_metric: best_validation_accuracy
+  candidate_tensorboard: false
+  candidate_overrides:
+    training.scheduler: none

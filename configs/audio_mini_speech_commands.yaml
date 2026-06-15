@@ -1,0 +1,66 @@
+experiment:
+  name: null
+  output_dir: runs/audio
+  seed: 42
+  deterministic: true
+
+runtime:
+  cpu_affinity: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  intraop_threads: 8
+  interop_threads: 1
+
+data:
+  dataset: mini_speech_commands
+  root: data
+  download: true
+  split_seed: 1234
+  validation_percentage: 10
+  test_percentage: 10
+  sample_rate: 16000
+  sample_length: 16000
+  batch_size: 64
+  num_workers: 0
+  pin_memory: false
+  max_train_samples: null
+  max_validation_samples: null
+  max_test_samples: null
+  augmentation:
+    enabled: true
+    time_shift_samples: 1600
+    gain_min: 0.8
+    gain_max: 1.2
+    noise_std: 0.003
+    peak_normalize: true
+
+model:
+  architecture: raw_audio_cnn
+  activation: gelu
+  activation_kwargs: {}
+  channels: [16, 32, 64, 96, 128]
+  kernel_sizes: [80, 9, 9, 9, 9]
+  strides: [4, 4, 4, 2, 2]
+  dropout: 0.2
+  num_classes: 8
+
+training:
+  epochs: 40
+  device: cpu
+  learning_rate: 0.001
+  activation_learning_rate_multiplier: 0.5
+  activation_weight_decay: 0.0
+  weight_decay: 0.0001
+  optimizer: adamw
+  scheduler: cosine
+  scheduler_min_learning_rate: 0.0
+  gradient_clip_norm: 5.0
+  evaluate_best_validation: true
+  log_every_steps: 100
+
+checkpoint:
+  enabled: true
+  save_every_steps: 1000
+  keep_latest: 3
+  resume: null
+
+tensorboard:
+  enabled: true
